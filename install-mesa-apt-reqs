@@ -1,0 +1,29 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+echo "deb http://deb.debian.org/debian buster-backports main" | tee \
+    -a /etc/apt/sources.list
+apt-get update -y
+apt-get upgrade -y
+apt-get install -y build-essential \
+    cmake \
+    git \
+    pkg-config \
+    libatomic-ops-dev \
+    libcairo2-dev \
+    libcunit1-dev \
+    libpciaccess-dev \
+    libunwind-dev \
+    llvm-8 \
+    llvm-8-dev \
+    python3.7 \
+    python3.7-dev \
+    python3-setuptools \
+    libzstd-dev \
+    libzstd1 \
+    zlib1g
+apt-get install -y -t buster-backports meson
+apt-get build-dep -y libdrm
+apt-get build-dep -y mesa

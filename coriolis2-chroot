@@ -1,0 +1,50 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+# Terminal echo colours
+RED='\033[1;91m'
+NC='\033[0m'
+
+# Default name for the new chroot
+chroot_name="coriolis"
+
+# Check if default chroot name should be used or not
+if [ -z $1 ]; then
+    echo "Not provided a chroot name, using default chroot \"$chroot_name\""
+else
+	chroot_name="$1"
+	echo "Using specified chroot name \"$chroot_name\""
+fi
+
+if [ -e /opt/chroot/$chroot_name ]; then
+    echo -e "
+${RED}Chroot \"$chroot_name\" exists! Delete with \"rm-deb-chroot\" or
+run parts of this script separately${NC}
+"
+    echo "See https://libre-soc.org/HDL_workflow/coriolis2/ for more info.
+"
+    exit
+fi
+
+echo "Creating a new chroot \"$chroot_name\" using \"mk-deb-chroot\""
+./mk-deb-chroot $chroot_name
+echo "Copying scripts to chroot \"$chroot_name\" using \"cp-scripts-to-chroot\""
+./cp-scripts-to-chroot $chroot_name
+
+# Run coriolis installation script as a normal user
+echo "Entering \"$chroot_name\" and setting Coriolis and its dependencies!"
+runuser $SUDO_USER -c "schroot -c $chroot_name --directory=/tmp /bin/bash << EOF
+cd /home/$SUDO_USER/dev-env-setup
+./coriolis-install
+EOF"
+
+
+echo "Your new Coriolis chroot should now be setup and ready to go!"
+echo -e "
+${RED}To get inside the new chroot, execute the following (as normal user):${NC}"
+echo -e "
+${RED}schroot -c $chroot_name --directory=/home/$SUDO_USER${NC}
+"
+

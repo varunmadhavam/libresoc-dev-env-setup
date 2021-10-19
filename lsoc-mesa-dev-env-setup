@@ -1,0 +1,26 @@
+#!/bin/bash
+
+mkdir -p ~/src/lsoc_mesa
+cd ~/src
+git clone https://gitlab.freedesktop.org/mesa/drm.git
+
+cd drm
+mkdir build && cd build
+meson -Dbuildtype=release -Dprefix=/home/$USER/src/lsoc_mesa ..
+ninja install
+
+export PKG_CONFIG_PATH=~/src/lsoc_mesa/lib/x86_64-linux-gnu/pkgconfig/
+export VK_ICD_FILENAMES=/home/$USER/src/lsoc_mesa/share/vulkan/icd.d/libresoc_icd.x86_64.json
+export VK_LOADER_DEBUG=warn
+export LIBRESOC_TRACE=1
+
+cd ~/src
+git clone https://git.libre-soc.org/git/mesa.git
+cd mesa
+git pull --rebase origin libresoc_dev
+git checkout -b libresoc_dev
+mkdir build && cd build
+
+meson -Dbuildtype=debug -Dprefix=/home/$USER/src/lsoc_mesa \
+      -Dvulkan-drivers=libre-soc ..
+ninja install

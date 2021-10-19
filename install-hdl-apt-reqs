@@ -1,0 +1,68 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+# for qemu 5.2 use debian/buster backports
+cat << EOF > /etc/apt/sources.list.d/buster_backports.list
+deb http://deb.debian.org/debian buster-backports main
+EOF
+
+# oooo annoying, pin preferences for buster-backports
+cat << EOF > /etc/apt/preferences.d/99buster-backports
+Package: *
+Pin: release a=buster-backports
+Pin-Priority: 900
+EOF
+
+apt-get update -y
+apt-get upgrade -y
+apt-get install -y autoconf \
+    bison \
+    build-essential \
+    clang \
+    cmake \
+    exuberant-ctags \
+    flex \
+    g++ \
+    gawk \
+    gcc-8-powerpc64-linux-gnu \
+    git \
+    gperf \
+    graphviz \
+    gtkwave \
+    iverilog \
+    libboost-program-options-dev \
+    libevent-dev \
+    libffi-dev \
+    libjson-c-dev \
+    libftdi-dev \
+    libgmp-dev \
+    libmpfr-dev \
+    libpng++-dev \
+    libreadline-dev \
+    libreadline7 \
+    ninja-build \
+    pkg-config \
+    python \
+    python2.7 \
+    python-dev \
+    python-setuptools \
+    python-virtualenv \
+    python3.7 \
+    python3.7-dev \
+    python3-nose \
+    python3-setuptools \
+    python-svgwrite \
+    python3-svgwrite \
+    python3-venv \
+    python3-sphinx \
+    python3-sphinx-rtd-theme \
+    python3-recommonmark \
+    qemu-system-ppc/buster-backports \
+    tcl \
+    tcl-dev \
+    tcl-tclreadline \
+    vim \
+    wget \
+    xdot

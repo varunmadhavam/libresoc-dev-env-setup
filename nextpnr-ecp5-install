@@ -1,0 +1,37 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root using 'sudo bash'"
+  exit
+fi
+
+apt-get update -y
+apt-get install -y python3 python3-dev clang cmake libboost-dev \
+                    libboost-filesystem-dev libboost-thread-dev \
+                    libboost-program-options-dev libboost-iostreams-dev \
+                    openocd libeigen3-dev
+
+# change into $SUDO_USER home directory
+mkdir -p nextpnr
+cd nextpnr
+
+git clone --recursive https://github.com/YosysHQ/prjtrellis
+git clone --recursive https://github.com/YosysHQ/nextpnr
+
+cd prjtrellis
+cd libtrellis
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local/libtrellis .
+make -j$(nproc)
+make install
+cd ../../
+
+cd nextpnr
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local\
+                    -DARCH=ecp5 \
+                    -DTRELLIS_INSTALL_PREFIX=/usr/local/libtrellis .
+make -j$(nproc)
+make install
+
+cd ../../
+chown -R $SUDO_USER .
+chgrp -R $SUDO_USER .
+

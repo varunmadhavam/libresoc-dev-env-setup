@@ -1,0 +1,109 @@
+#!/bin/sh
+# Serious Amounts of Notes from attempting to install arty a7 without
+# conda.
+
+echo symbiflow-examples
+echo symbiflow-arch-defs
+echo yosys
+
+symbiflow:
+
+cython3
+
+cairosvg
+gitpython
+hilbertcurve==1.0.5
+intervaltree
+matplotlib
+numpy
+pdfminer.six
+ply
+progressbar2
+pycapnp==1.0.0b1
+pyjson5
+pytest
+python-constraint
+pyyaml
+scipy
+simplejson
+svgwrite
+termcolor
+textx
+tinyfpgab
+tinyprog
+yapf==0.26.0
+fasm
+git+https://github.com/QuickLogic-Corp/quicklogic-fasm.git#egg=quicklogic_fasm
+git+https://github.com/SymbiFlow/symbiflow-rr-graph.git#egg=rr-graph
+git+https://github.com/SymbiFlow/python-fpga-interchange.git#egg=python-fpga-interchange
+-e third_party/prjxray
+-e third_party/xc-fasm
+-e third_party/qlf-fasm
+-e third_party/python-sdf-timing
+-e third_party/python-symbiflow-v2x
+-e third_party/vtr-xml-utils
+-e third_party/symbiflow-xc-fasm2bels
+-e third_party/litex
+-e third_party/litex-boards
+-e third_party/litedram
+-e third_party/liteeth
+-e third_party/liteiclink
+-e third_party/migen
+-e quicklogic/common/utils/quicklogic-timings-importer
+third_party/pythondata-cpu-vexriscv
+third_party/pythondata-software-compiler_rt
+# Ibex dependencies
+git+https://github.com/lowRISC/edalize.git@ot
+git+https://github.com/lowRISC/fusesoc.git@ot
+mako
+
+ln -s /usr/bin/pip3 /usr/bin/pip
+apt-get install python3-pytest
+ln -s /usr/bin/pytest-3 /usr/bin/pytest
+
+
+xc7 requirements:
+
+intervaltree
+junit-xml
+numpy
+openpyxl
+ordered-set
+parse
+progressbar2
+pyjson5
+pytest
+pyyaml
+scipy>=1.2.1
+simplejson
+sympy
+textx
+yapf==0.24.0
+python-constraint
+fasm
+git+https://github.com/SymbiFlow/prjxray.git@e25c20a8f158cc5e94eb62e3b74e16fc9d6c1d26#egg=prjxray
+git+https://github.com/symbiflow/xc-fasm.git@14afc2bae24cbf6ee5e7d057a58b4cbd776358d0#egg=xc-fasm
+
+symbiflow_synth requires:
+    prjxray
+    prjxray-db
+
+    prjxray-config:
+        #!/bin/sh
+        echo /usr/share/xray/database
+
+    yosys-symbiflow-plugins
+    https://github.com/SymbiFlow/yosys-symbiflow-plugins
+        xdc
+        params
+        sdc
+        fasm
+
+    vpr (part of vtr)
+        https://github.com/verilog-to-routing/vtr-verilog-to-routing
+        https://docs.verilogtorouting.org/en/latest/building/building/
+        libeigen3-dev
+        libtbb-dev
+
+    xc7frames2bit (part of prjxray)
+        manually copied out

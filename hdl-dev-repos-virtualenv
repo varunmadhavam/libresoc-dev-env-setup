@@ -1,0 +1,53 @@
+#!/bin/bash
+python3 -m venv .env
+. .env/bin/activate
+pip3 install nose
+
+git clone https://github.com/nmigen/nmigen.git
+git clone https://git.libre-soc.org/git/c4m-jtag.git
+git clone https://git.libre-soc.org/git/nmutil.git
+git clone https://git.libre-soc.org/git/openpower-isa.git
+git clone https://git.libre-soc.org/git/ieee754fpu.git
+git clone https://git.libre-soc.org/git/nmigen-soc.git
+git clone https://git.libre-soc.org/git/soc.git
+
+# nmigen
+cd /home/$SUDO_USER/src/nmigen
+git tag | xargs git tag -d # very annoying
+python3 setup.py develop
+
+# nmigen-soc
+cd ../nmigen-soc
+git tag | xargs git tag -d # very annoying
+python3 setup.py develop
+
+# c4m-jtag
+cd ../c4m-jtag
+git tag | xargs git tag -d # very annoying
+python3 setup.py develop
+
+# nmutil
+cd ../nmutil
+python3 setup.py develop
+
+# openpower-isa
+cd ../openpower-isa
+python3 setup.py develop
+make svanalysis
+make pywriter
+make pyfnwriter
+
+# ieee754fpy
+cd ../ieee754fpu
+git submodule update --init --recursive
+python3 setup.py develop
+
+# soc
+cd ../soc
+make gitupdate
+python3 setup.py develop
+make mkpinmux
+
+# comment this out - takes too long.  run it manually
+# nosetests -v --processes=-1 --process-timeout=120
+

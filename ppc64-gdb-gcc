@@ -1,0 +1,29 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
+# first install powerpc64 gcc-8 cross-compiler
+apt-get install gcc-8-powerpc64-linux-gnu wget texinfo
+
+# it your responsibility to check that the archive downloaded below is
+# uncompromised!
+
+runuser $SUDO_USER --preserve-environment -c '
+cd /home/$SUDO_USER
+mkdir -p src
+cd src
+wget https://ftp.gnu.org/gnu/gdb/gdb-8.3.tar.gz -O gdb-8.3.tar.gz
+tar -xvzf gdb-8.3.tar.gz
+cd gdb-8.3
+mkdir -p build
+cd build
+../configure --srcdir=.. --host=x86_64-linux --target=powerpc64-linux-gnu
+make
+'
+cd /home/$SUDO_USER/src/gdb-8.3/build
+make install
+echo -e "
+\e[1;91mCross-compiled GDB 8.3 and compiler now installed.\e[0m
+"

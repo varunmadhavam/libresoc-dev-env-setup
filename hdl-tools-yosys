@@ -1,0 +1,45 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root using 'sudo bash'"
+  exit
+fi
+
+# this is a bit of a cheat, by relying on debian to pull in all the
+# build dependencies.  saves time researching how to get and list them
+# by hand.
+apt-get update -y 
+apt-get build-dep yosys -y
+apt-get remove yosys -y
+
+mkdir -p hdl_tools
+cd hdl_tools
+
+git clone https://github.com/cliffordwolf/yosys.git
+git clone https://github.com/YosysHQ/SymbiYosys.git sby
+git clone https://github.com/SRI-CSL/yices2.git
+git clone https://github.com/Z3Prover/z3.git
+
+cd yosys
+git checkout -f a58571d0fe8971cb7d3a619a31b2c21be6d75bac
+make config-clang
+make -j$(nproc)
+make install
+
+cd ../sby
+make install
+
+cd ../yices2
+autoconf
+./configure
+make -j$(nproc)
+make install
+
+cd ../z3
+python scripts/mk_make.py
+cd build
+make -j$(nproc)
+make install
+
+cd ../../
+chown -R $SUDO_USER .
+chgrp -R $SUDO_USER .

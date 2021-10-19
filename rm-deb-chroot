@@ -1,0 +1,69 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+    then echo "Please run as root"
+    exit
+fi
+if [ -z "$1"  ]
+    then echo "Need arg $1 to specify which chroot to delete"
+    exit
+fi
+
+chrootdir="$1"
+chroot_path=/opt/chroot/$chrootdir
+chroot_config_path=/etc/schroot/$chrootdir
+
+schroot_main_config=/etc/schroot/schroot.conf
+backup_schroot_config="/tmp/schroot.conf.orig"
+sleep_time=1
+
+echo "----------------------------------------------"
+echo "WARNING! If the script finds directories:"
+echo "$chroot_path"
+echo "$chroot_config_path"
+echo "It will DELETE them!"
+echo ""
+echo "The [$chrootdir] chroot profile from:"
+echo "$schroot_main_config"
+echo "will also be removed."
+echo ""
+echo "The script will wait for $sleep_time second/s before starting"
+echo "Press Ctrl-C now to cancel."
+echo "----------------------------------------------"
+sleep $sleep_time
+
+if [ -e $chroot_path ]; then
+    echo "Deleting $chroot_path"
+    rm -rf $chroot_path
+else
+    echo "$chroot_path not found, skipping."
+fi
+
+if [ -e $chroot_config_path ]; then
+    echo "Deleting $chroot_config_path configuration directory"
+    rm -rf $chroot_config_path
+else
+    echo "$chroot_config_path not found, skipping."
+fi
+
+# Find where the entry for given scroot profile is in the file.
+# Return line number corresponding to the start.
+lin_num_start=$(grep -n "\[$chrootdir\]" $schroot_main_config | cut -d : -f 1)
+
+if [ -z $lin_num_start ]; then
+    echo "The [$chrootdir] chroot profile in $schroot_main_config does not exist"
+    echo "Skipping $schroot_main_config"
+else
+    echo "The [$chrootdir] chroot profile found in $schroot_main_config"
+    # Can't think of a good way to make this clean
+    # Assumption: the profile always ends with "profile=$chrootdir",
+    # which will indicate the last line to delete of the old chroot
+    lin_num_end=$(grep -n "profile=$chrootdir" $schroot_main_config | cut -d : -f 1)
+    lines="$lin_num_start,$lin_num_end"
+    echo "Line range to delete from $schroot_main_config: $lines"
+
+    echo "Creating backup copy of $schroot_main_config in $backup_schroot_config"
+    cp $schroot_main_config $backup_schroot_config 
+    echo "Script will re-write $schroot_main_config by"
+    echo "removing the old $chrootdir profile"
+    sed -e "$lines"'d' $backup_schroot_config > $schroot_main_config
+fi

@@ -1,0 +1,157 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+if [ -z "$1"  ]
+  then echo "Need arg $1 for chroot to make"
+  exit
+fi
+chrootdir="$1"
+
+if [ -e /opt/chroot/$chrootdir ]; then
+    echo "/opt/chroot/$chrootdir already exists"
+    exit
+fi
+
+
+echo "Creating chroot dir '$chrootdir'"
+
+# Create coriolis chroot dir in /opt
+mkdir /opt/chroot/$chrootdir
+
+# argh apt with broken proxies and unreliable ISPs, getting fed up with it
+if [ -e /tmp/brokenproxy ]; then
+    echo "Temp file containing apt proxy fix configuration already exists, skipping!"
+else
+    cat <<EOF >/tmp/brokenproxy
+APT::Acquire::Retries "20";
+APT::Get::Fix-Broken "true";
+Acquire::http::Pipeline-Depth "0";
+Acquire::http::No-Cache=True;
+Acquire::BrokenProxy=true;
+EOF
+fi
+
+if [ -e /etc/apt/apt.conf.d/80-retries ]; then
+    echo "Host system apt.conf.d already has 80-retries, skipping!"
+else
+    cp /tmp/brokenproxy /etc/apt/apt.conf.d/80-retries
+fi
+
+# Install debootstrap and schroot
+if [ -e /etc/debian_version ]; then
+    # Debian detected: use apt
+    apt install -y debootstrap schroot
+elif [ -e /etc/lsb-release ]; then
+    # Ubuntu detected: use apt
+    apt install -y debootstrap schroot
+elif [ -e /etc/arch-release ]; then
+    # Arch Linux detected: use pacman
+    pacman -S --needed debootstrap schroot
+fi
+
+# Install debian/buster chroot using debootstrap, 
+# any /etc/ config must be done after this point!
+/usr/sbin/debootstrap buster /opt/chroot/$chrootdir \
+                      http://ftp.uk.debian.org/debian
+echo "$chrootdir" > /opt/chroot/$chrootdir/etc/debian_chroot
+
+# make chroot profile
+mkdir -p /etc/schroot/$chrootdir
+cp /etc/schroot/default/copyfiles /etc/schroot/$chrootdir
+touch /etc/schroot/$chrootdir/nssdatabases
+
+# Copy over brokenproxy apt script to the new chroot environment
+cp /tmp/brokenproxy /opt/chroot/$chrootdir/etc/apt/apt.conf.d/80-retries
+
+# create special fstab not bind-mounting /home
+schroot_fstab="
+# <file system> <mount point>   <type>  <options>       <dump>  <pass>
+/proc           /proc           none    rw,bind         0       0
+/sys            /sys            none    rw,bind         0       0
+/dev            /dev            none    rw,bind         0       0
+/dev/pts        /dev/pts        none    rw,bind         0       0
+/tmp            /tmp            none    rw,bind         0       0
+"
+
+cat <<EOF >/etc/schroot/$chrootdir/fstab
+$schroot_fstab
+EOF
+
+echo "Adding the following fstab mounts to /etc/schroot/$chrootdir/fstab:
+
+$schroot_fstab
+
+These rules are for the virtual filesystems used by linux in the chroot env
+"
+
+schroot_profile="
+[$chrootdir]
+description=Debian Buster for $chrootdir
+directory=/opt/chroot/$chrootdir
+groups=sbuild-security,$SUDO_USER,users
+type=directory
+profile=$chrootdir
+"
+
+if grep -x "\[$chrootdir\]" /etc/schroot/schroot.conf; then
+    echo "Found [$chrootdir] section in /etc/schroot/schroot.conf"
+else
+    # Add chroot config to schroot.conf
+    cat <<EOF >>/etc/schroot/schroot.conf
+$schroot_profile
+EOF
+
+    echo "Adding the following $chrootdir section to /etc/schroot/schroot.conf:
+
+$schroot_profile
+
+This enables you to chroot into $chrootdir as an unprivileged user by running
+'schroot -c $chrootdir /bin/bash'
+"
+fi
+
+# Install apt dependencies in the chroot
+cd /tmp
+schroot -c $chrootdir /bin/bash --directory=/tmp << EOF
+echo Installing necessary apt dependencies in the chroot
+apt-get update -y
+apt-get upgrade -y
+apt-get install -y automake binutils-dev build-essential \
+        ccache cmake gcc git \
+        libtool \
+        sysvinit-core \
+        sysvinit-utils \
+        sudo \
+        python2.7 \
+        python3 python3-pip \
+        python3-setuptools python3-dev
+
+# yeah systemd in a chroot? not very funny joke.
+apt-get remove -y systemd
+
+# add sudo no password
+echo '$SUDO_USER ALL=NOPASSWD: ALL' >> /etc/sudoers.d/$chrootdir
+
+# Create user with same UID in the chroot
+useradd -m -p `python3 -c 'import crypt; print (crypt.crypt("1234","Fx"))'` \
+                -s /bin/bash $SUDO_USER -k /etc/skel
+echo -e "
+Added user ${SUDO_USER} with \e[1;91mpassword: 1234\e[0m"
+
+# add deb-src to sources
+echo deb-src http://ftp.debian.org/debian buster main > \
+        /etc/apt/sources.list.d/bustersrc.list
+
+echo -e "
+\e[1;91mPlease use command 'passwd ${SUDO_USER}' to change this immediately after this script is run for security purposes.\e[0m
+"
+
+# Add convenience variable to chroot user .bash_profile
+echo -e 'export PATH=/usr/lib/ccache:"\044PATH"\nexport DISPLAY=:0.0\n' > /home/$SUDO_USER/.bash_profile
+chown $SUDO_USER /home/$SUDO_USER/.bash_profile
+chgrp $SUDO_USER /home/$SUDO_USER/.bash_profile
+
+echo -e "Added 'export PATH=/usr/lib/ccache:\"\044PATH\"\nexport DISPLAY=:0.0' to /home/$SUDO_USER/.bash_profile to speed up rebuilds"
+EOF

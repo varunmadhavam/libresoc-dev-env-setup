@@ -1,0 +1,78 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root using 'sudo bash'"
+  exit
+fi
+
+git clone https://github.com/enjoy-digital/litex.git
+git clone https://github.com/litex-hub/litex-boards.git
+git clone https://github.com/enjoy-digital/liteeth.git
+git clone https://github.com/enjoy-digital/litedram.git
+git clone https://github.com/litex-hub/litehyperbus.git
+git clone https://github.com/enjoy-digital/liteiclink.git
+git clone https://github.com/enjoy-digital/litepcie.git 
+git clone https://github.com/enjoy-digital/litescope.git
+git clone https://github.com/enjoy-digital/litesdcard.git
+git clone https://github.com/litex-hub/litespi.git
+git clone https://github.com/litex-hub/pythondata-misc-tapcfg.git
+git clone https://github.com/litex-hub/pythondata-software-compiler_rt.git
+git clone https://github.com/litex-hub/pythondata-cpu-serv.git 
+
+cd litex 
+git checkout -f 35929c0f8a8f1cc098a6b6ebb569caca8df8c08d
+python3 setup.py develop
+
+cd ../litex-boards
+git checkout -f f3289095780a0106bd41201ea680d50ca5c1a180
+python3 setup.py develop
+
+cd ../liteeth
+git checkout -f 792013a1756ea50608726ee86989ec38cfc35a8b
+python3 setup.py develop
+
+cd ../litedram
+git checkout -f 198bcbab676e2b4065e5b6a7dc8a7733bae8315a
+python3 setup.py develop
+
+cd ../litehyperbus
+git checkout -f 8f7116e15470c97f2a564746c3e57e0deaf32229
+python3 setup.py develop
+
+cd ../liteiclink
+git checkout -f 60b19945d2e08913d56ecf6433a1d380bb1da616
+python3 setup.py develop
+
+cd ../litepcie
+git checkout -f 29d496302e0addf5daac553f8da6a6c79db4237f
+python3 setup.py develop
+
+cd ../litescope
+git checkout -f ec7bd6b47d3cbc549e4465e59e427cb438734d33
+python3 setup.py develop
+
+cd ../litesdcard
+git checkout -f b5a92192acc950388480c25039cd324c898998fb
+python3 setup.py develop
+
+cd ../litespi
+git checkout -f ce33a01b85c24e9123a12443a5d447da0e462767
+python3 setup.py develop
+
+cd ../pythondata-misc-tapcfg
+git checkout -f 25c97a4a9ff9af85248028fe01e2c65b2e3640ee
+python3 setup.py develop
+
+cd ../pythondata-software-compiler_rt
+git checkout -f 7cfcaed2e726027fd622650b58dd77e47c495ee0
+python3 setup.py develop
+
+cd ../pythondata-cpu-serv
+git checkout -f fe79ea40880943c259d774201f2725133f4878fd
+python3 setup.py develop
+
+cd ../
+chown -R $SUDO_USER .
+chgrp -R $SUDO_USER .
+echo -e "
+\e[1;91mAll Litex should now be installed.\e[0m
+"

@@ -1,0 +1,125 @@
+#!/bin/bash
+
+if [ "$EUID" -eq 0 ]; then
+  echo "Please run as a normal user!"
+  echo "This script is NOT intended to run as root."
+  exit
+fi
+
+echo "Current USER=$USER"
+
+# Install apt dependencies
+echo Installing necessary apt dependencies in the chroot
+sudo apt-get update -y
+sudo apt-get upgrade -y
+sudo apt-get install -y automake binutils-dev bison build-essential \
+	sysvinit-utils sysvinit-core \
+	ccache clang cmake doxygen dvipng flex gcc git graphviz \
+	imagemagick libboost-all-dev libboost-python-dev libbz2-dev \
+	libmpfr-dev libgmp-dev libmotif-dev libreadline-dev \
+	libqwt-dev libtool libx11-dev libxaw7-dev libxml2-dev \
+	python2.7 python2.7-dev \
+	libxpm-dev libxt-dev python3.7 python3-jinja2 python3-pip \
+	python3-setuptools python-dev python-qt4 python-sphinx \
+	qt4-dev-tools rapidjson-dev tcl tcl-dev tcl-tclreadline \
+	texlive texlive-fonts-extra texlive-lang-french \
+	texlive-latex-extra texlive-pictures xfig zlib1g-dev
+
+# Add convenience variable to chroot user .bash_profile
+vars_for_bash_profile="export PATH=/usr/lib/ccache:\044PATH
+export DISPLAY=:0.0
+export ALLIANCE_TOP=/home/$USER/alliance/install
+export YOSYS_TOP=/home/$USER/yosys
+export LD_LIBRARY_PATH=\044{ALLIANCE_TOP}/lib:\044{LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=\044{ALLIANCE_TOP}/lib64:\044{LD_LIBRARY_PATH}"
+
+echo -e "$vars_for_bash_profile" > /home/$USER/.bash_profile
+
+echo "Setting /home/$USER/.bash_profile file to (for faster rebuilds):
+$vars_for_bash_profile"
+
+sudo chown $USER /home/$USER/.bash_profile
+sudo chgrp $USER /home/$USER/.bash_profile
+
+# Build and install yosys from source
+# note that a specific version of yosys is needed for ls180 at the moment
+echo "deb-src http://ftp.debian.org/debian buster main" > /etc/apt/sources.list.d/bustersrc.list
+sudo apt-get update -y
+sudo apt-get build-dep yosys -y
+
+cd /home/$USER
+git clone https://github.com/cliffordwolf/yosys.git
+cd yosys
+git checkout 049e3abf9baf795e69b9ecb9c4f19de6131f8418
+make config-clang
+# WAY too heavy a load (18+) - make -j$(nproc)
+make
+
+cd /home/$USER/yosys
+sudo make install
+
+# Install coriolis2 from source
+cd /home/$USER
+source .bash_profile
+mkdir -p /home/$USER/coriolis-2.x/src
+cd /home/$USER/coriolis-2.x/src
+git clone https://gitlab.lip6.fr/vlsi-eda/coriolis.git
+cd coriolis
+# check out Libre-SOC 180nm ASIC version - uses stable python2 version
+#git checkout devel
+git checkout LS180_RC7_FINAL
+# guaranteed to fail ./bootstrap/ccb.py --projecrt=coriolis --make="-j$(nproc) install"
+./bootstrap/ccb.py --project=coriolis --make="-j1 install"
+
+# Setup and test coriolisenv
+# Have to use workaround as coriolisEnv.py can't detect the shell when ran inside a script.
+/bin/bash << EOF
+/home/$USER/coriolis-2.x/src/coriolis/bootstrap/coriolisEnv.py > /home/$USER/coriolisenv
+EOF
+
+# Set the environment variables needed for Coriolis2 and Alliance
+# coriolisenv overwrites env vars, so should occur first
+source /home/$USER/coriolisenv
+source /home/$USER/.bash_profile
+
+# Install alliance from source
+cd /home/$USER
+git clone https://gitlab.lip6.fr/vlsi-eda/alliance.git
+mkdir -p /home/$USER/alliance/build /home/$USER/alliance/install
+mv alliance/alliance/src alliance
+rm -rf alliance/alliance
+# Compile Alliance
+cd alliance/src
+./autostuff
+cd /home/$USER/alliance/build
+../src/configure --prefix=/home/$USER/alliance/install --enable-alc-shared
+# Make/Install as local user
+make -j1 install
+
+# Install and configure alliance-check-toolkit
+cd /home/$USER
+git clone https://gitlab.lip6.fr/vlsi-eda/alliance-check-toolkit.git
+touch alliance-check-toolkit/etc/mk/users.d/user-$USER.mk
+
+# Environment variables for alliance-check-toolkit in a single script variable
+vars_for_alliance_check="export CORIOLIS_TOP=/home/$USER/coriolis-2.x/Linux.x86_64/Release.Shared/install
+export ALLIANCE_TOP=/home/$USER/alliance/install
+export CHECK_TOOLKIT=/home/$USER/alliance-check-toolkit
+export YOSYS_TOP=/home/$USER/yosys"
+
+echo -e "$vars_for_alliance_check" > /home/$USER/alliance-check-toolkit/etc/mk/users.d/user-$USER.mk
+
+echo "Setting /home/$USER/alliance-check-toolkit/etc/mk/users.d/user-$USER.mk file to:
+$vars_for_alliance_check"
+
+example_cell="chip_r"
+cd alliance-check-toolkit/benchs/adder/cmos
+make lvx
+echo -e "
+\e[1;91mSelect File -> Open Cell or press CTRL + o then enter as the cell name '$example_cell' without the single quotation marks.\e[0m
+"
+make cgt
+
+cd /home/$USER/
+sudo chown -R $USER *
+sudo chgrp -R $USER *

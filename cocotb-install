@@ -1,0 +1,25 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root using 'sudo bash'"
+  exit
+fi
+
+apt-get update -y
+apt-get install -y git python3 python3-dev g++ make python3-setuptools \
+	python3-pytest
+
+# change into $SUDO_USER home directory
+cd /home/$SUDO_USER
+mkdir -p src/cocotb
+cd src/cocotb
+
+git clone https://github.com/cocotb/cocotb.git
+
+cd cocotb
+git checkout v1.5.2
+python3 setup.py install
+
+cd /home/$SUDO_USER/src/cocotb
+chown -R $SUDO_USER .
+chgrp -R $SUDO_USER .
+

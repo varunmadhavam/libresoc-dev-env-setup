@@ -1,0 +1,27 @@
+#!/bin/bash
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+if [ -z "$1"  ]
+  then echo "Need arg $1 to specify which chroot to copy scripts to!"
+  exit
+fi
+
+chrootdir="$1"
+
+if [ -e /opt/chroot/$chrootdir ]; then
+
+	cur_dir=$(pwd | grep -o '[^/]*$')
+	if [ "$cur_dir" == "dev-env-setup" ]; then
+		echo "Copy over the dev-env-setup scripts to $chrootdir environment"
+		cp -R ../dev-env-setup /opt/chroot/$chrootdir/home/$SUDO_USER/
+		chown -R $SUDO_USER /opt/chroot/$chrootdir/home/$SUDO_USER/dev-env-setup
+		chgrp -R $SUDO_USER /opt/chroot/$chrootdir/home/$SUDO_USER/dev-env-setup
+	else
+		echo "This script must be run from dev-env-setup directory!"
+	fi
+else
+	echo "$chrootdir environment does not exist, cannot copy scripts!"
+fi
+
